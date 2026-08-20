@@ -1,7 +1,5 @@
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { useTheme, type ThemePreference } from '../context/ThemeContext'
-import { Button } from './ui/Button'
-import { Hint } from './ui/Hint'
-import { Menu, MenuContent, MenuRadioGroup, MenuRadioItem, MenuTrigger } from './ui/Menu'
 
 function SunIcon() {
   return (
@@ -39,40 +37,72 @@ function SystemIcon() {
   )
 }
 
+const options: Array<{
+  value: ThemePreference
+  label: string
+  icon: typeof SunIcon
+}> = [
+  { value: 'light', label: 'Light', icon: SunIcon },
+  { value: 'dark', label: 'Dark', icon: MoonIcon },
+  { value: 'system', label: 'System', icon: SystemIcon },
+]
+
 export function ThemeToggle() {
   const { theme, resolvedTheme, setTheme } = useTheme()
 
   return (
-    <Menu>
-      <Hint label="Theme">
-        <MenuTrigger asChild>
-          <Button variant="icon" aria-label="Choose theme" className="w-10">
-            {resolvedTheme === 'dark' ? <MoonIcon /> : <SunIcon />}
-          </Button>
-        </MenuTrigger>
-      </Hint>
-      <MenuContent>
-        <MenuRadioGroup
-          value={theme}
-          onValueChange={(value) => setTheme(value as ThemePreference)}
+    <DropdownMenu.Root modal={false}>
+      <DropdownMenu.Trigger asChild>
+        <button
+          type="button"
+          aria-label="Theme"
+          title="Theme"
+          className="inline-flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-border-soft bg-surface-lowest text-on-surface outline-none hover:border-outline-variant focus-visible:border-primary-action focus-visible:shadow-[0_0_0_2px_rgb(76_175_80_/_0.2)] dark:bg-surface-low"
         >
-          <MenuRadioItem value="light">
-            <span className="flex items-center gap-2">
-              <SunIcon /> Light
-            </span>
-          </MenuRadioItem>
-          <MenuRadioItem value="dark">
-            <span className="flex items-center gap-2">
-              <MoonIcon /> Dark
-            </span>
-          </MenuRadioItem>
-          <MenuRadioItem value="system">
-            <span className="flex items-center gap-2">
-              <SystemIcon /> System
-            </span>
-          </MenuRadioItem>
-        </MenuRadioGroup>
-      </MenuContent>
-    </Menu>
+          {resolvedTheme === 'dark' ? <MoonIcon /> : <SunIcon />}
+        </button>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          align="end"
+          sideOffset={8}
+          collisionPadding={12}
+          className="z-[200] min-w-[12rem] rounded-lg border border-border-soft bg-surface-lowest p-1 shadow-lift outline-none dark:bg-[#1e1e1e]"
+        >
+          <DropdownMenu.Label className="px-3 py-2 text-[12px] font-medium tracking-[0.01em] text-outline">
+            Appearance
+          </DropdownMenu.Label>
+          <DropdownMenu.RadioGroup
+            value={theme}
+            onValueChange={(value) => setTheme(value as ThemePreference)}
+          >
+            {options.map((option) => {
+              const Icon = option.icon
+              return (
+                <DropdownMenu.RadioItem
+                  key={option.value}
+                  value={option.value}
+                  className="relative flex cursor-pointer items-center gap-2 rounded-sm py-2 pr-3 pl-8 text-[14px] font-semibold leading-5 text-on-surface outline-none select-none data-[highlighted]:bg-surface-low data-[state=checked]:text-primary"
+                >
+                  <DropdownMenu.ItemIndicator className="absolute left-2 text-primary">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                      <path
+                        d="M3 7.2 5.6 10 11 3.8"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </DropdownMenu.ItemIndicator>
+                  <Icon />
+                  {option.label}
+                </DropdownMenu.RadioItem>
+              )
+            })}
+          </DropdownMenu.RadioGroup>
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
   )
 }

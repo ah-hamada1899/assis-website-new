@@ -1,9 +1,9 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import { BrandMark } from './brand'
 import { ThemeToggle } from './ThemeToggle'
 import { Avatar } from './ui/Avatar'
 import { Button } from './ui/Button'
-import { useAuth } from '../context/AuthContext'
 
 function initials(name: string) {
   return name
@@ -16,13 +16,14 @@ function initials(name: string) {
 
 export function AppHeader() {
   const { client, ready, signOut } = useAuth()
+  const navigate = useNavigate()
 
   return (
     <header className="mx-auto flex w-full max-w-[1200px] items-center justify-between gap-4 px-6 py-6 md:px-16">
-      <Link to="/" className="min-w-0">
+      <Link to={client ? '/home' : '/'} className="min-w-0">
         <BrandMark compact />
       </Link>
-      <div className="flex items-center gap-2 sm:gap-3">
+      <div className="flex shrink-0 items-center gap-2 sm:gap-3">
         <ThemeToggle />
         {ready && client ? (
           <>
@@ -40,7 +41,9 @@ export function AppHeader() {
             <Button
               variant="secondary"
               className="w-auto px-5"
-              onClick={() => void signOut()}
+              onClick={() => {
+                void signOut().then(() => navigate('/'))
+              }}
             >
               Sign out
             </Button>

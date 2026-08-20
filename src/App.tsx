@@ -1,7 +1,9 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { GuestOnly, RequireAuth } from './components/auth/guards'
 import { AccountPage } from './pages/AccountPage'
+import { AppHomePage } from './pages/AppHomePage'
 import { SignInPage, SignUpPage } from './pages/AuthPages'
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { HomePage } from './pages/HomePage'
 import { OAuthCallbackPage } from './pages/OAuthCallbackPage'
 
@@ -17,12 +19,25 @@ export default function App() {
           </GuestOnly>
         }
       />
-      <Route
-        path="/login"
-        element={<Navigate to="/sign-in" replace />}
-      />
+      <Route path="/login" element={<Navigate to="/sign-in" replace />} />
       <Route path="/sign-up" element={<SignUpPage />} />
+      <Route
+        path="/forgot-password"
+        element={
+          <GuestOnly>
+            <ForgotPasswordPage />
+          </GuestOnly>
+        }
+      />
       <Route path="/auth/callback" element={<OAuthCallbackPage />} />
+      <Route
+        path="/home"
+        element={
+          <RequireAuth>
+            <AppHomePage />
+          </RequireAuth>
+        }
+      />
       <Route
         path="/account"
         element={

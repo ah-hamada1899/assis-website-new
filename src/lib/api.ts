@@ -4,8 +4,12 @@ import {
   ApiError,
   type ApiEnvelope,
   type Client,
+  type ClientMobileTokenResponse,
   type ClientTokenResponse,
+  type OtpHint,
+  type PhoneAuthStart,
   type RegisterResponse,
+  type ResetTokenResponse,
 } from './types'
 
 const ACCESS_KEY = 'assis.accessToken'
@@ -34,7 +38,7 @@ export function clearTokens(): void {
 
 export function oauthUrl(
   provider: 'google' | 'microsoft',
-  fromPath = '/account',
+  fromPath = '/home',
 ): string {
   const from = `${window.location.origin}${fromPath}`
   const params = new URLSearchParams({
@@ -94,6 +98,8 @@ export async function apiRequest<T>(
   return parseEnvelope<T>(response)
 }
 
+// --- Email / password (web) ---
+
 export function login(identifier: string, password: string) {
   return apiRequest<ClientTokenResponse>('/clients/auth/login', {
     method: 'POST',
@@ -113,6 +119,101 @@ export function register(input: {
     body: input,
   })
 }
+
+// --- Phone OTP (explicit purpose) ---
+
+export function requestOtp(phone: string, purpose: 'signup' | 'login') {
+  return apiRequest<OtpHint>('/clients/auth/otp/request', {
+    method: 'POST',
+    auth: false,
+    body: { phone, purpose },
+  })
+}
+
+export function signupWithPhone(input: {
+  phone: string
+  code: string
+  fullName: string
+}) {
+  return apiRequest<ClientTokenResponse>('/clients/auth/signup', {
+    method: 'POST',
+    auth: false,
+    body: input,
+  })
+}
+
+export function loginWithOtp(phone: string, code: string) {
+  return apiRequest<ClientTokenResponse>('/clients/auth/login/otp', {
+    method: 'POST',
+    auth: false,
+    body: { phone, code },
+  })
+}
+
+// --- Unified phone entry (auto signup or login) ---
+
+export function startPhoneAuth(phone: string) {
+  return apiRequest<PhoneAuthStart>('/clients/auth/phone', {
+    method: 'POST',
+    auth: false,
+    body: { phone },
+  })
+}
+
+export function verifyPhoneAuth(input: {
+  phone: string
+  code: string
+  fullName?: string
+}) {
+  return apiRequest<ClientTokenResponse>('/clients/auth/phone/verify', {
+    method: 'POST',
+    auth: false,
+    body: input,
+  })
+}
+
+// --- Mobile-only token endpoints (available for API testing) ---
+
+export function loginMobile(identifier: string, password: string) {
+  return apiRequest<ClientMobileTokenResponse>('/clients/auth/login/mobile', {
+    method: 'POST',
+    auth: false,
+    body: { identifier, password },
+  })
+}
+
+export function loginMobilePhone(input: {
+  phone: string
+  password: string
+  code: string
+}) {
+  return apiRequest<ClientMobileTokenResponse>(
+    '/clients/auth/login/mobile/phone',
+    {
+      method: 'POST',
+      auth: false,
+      body: input,
+    },
+  )
+}
+
+export function loginWithGoogleIdToken(idToken: string) {
+  return apiRequest<ClientTokenResponse>('/clients/auth/oauth/google', {
+    method: 'POST',
+    auth: false,
+    body: { idToken },
+  })
+}
+
+export function exchangeOAuthCode(code: string) {
+  return apiRequest<ClientTokenResponse>('/clients/auth/oauth/exchange', {
+    method: 'POST',
+    auth: false,
+    body: { code },
+  })
+}
+
+// --- Session ---
 
 export function refreshSession(refreshToken?: string | null) {
   return apiRequest<ClientTokenResponse>('/clients/auth/refresh', {
@@ -134,6 +235,8 @@ export function getMe(token?: string | null) {
   })
 }
 
+// --- Email verification ---
+
 export function verifyEmail(code: string) {
   return apiRequest<Client>('/clients/auth/email/verify', {
     method: 'POST',
@@ -142,8 +245,49 @@ export function verifyEmail(code: string) {
 }
 
 export function requestEmailVerification() {
-  return apiRequest<{ expiresAt: string; code?: string }>(
-    '/clients/auth/email/verify/request',
-    { method: 'POST' },
+  return apiRequest<OtpHint>('/clients/auth/email/verify/request', {
+    method: 'POST',
+  })
+}
+
+// --- Password reset ---
+
+export function requestPasswordResetOtp(phone: string) {
+  return apiRequest<OtpHint>('/clients/auth/password/reset/otp', {
+    method: 'POST',
+    auth: false,
+    body: { phone },
+  })
+}
+
+export function requestPasswordResetEmail(email: string) {
+  return apiRequest<OtpHint>('/clients/auth/password/reset/email', {
+    method: 'POST',
+    auth: false,
+    body: { email },
+  })
+}
+
+export function verifyPasswordReset(input: {
+  channel: 'phone' | 'email'
+  code: string
+  phone?: string
+  email?: string
+}) {
+  return apiRequest<ResetTokenResponse>(
+    '/clients/auth/password/reset/verify',
+    {
+      method: 'POST',
+      auth: false,
+      body: input,
+    },
   )
+}
+
+export function confirmPasswordReset(resetToken: string, newPassword: string) {
+  return apiRequest<Client>('/clients/auth/password/reset/confirm', {
+    method: 'POST',
+    auth: false,
+    body: { resetToken, newPassword },
+  })
 }

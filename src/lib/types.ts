@@ -34,9 +34,29 @@ export type ClientTokenResponse = {
   client: Client
 }
 
-export type EmailVerificationHint = {
+export type ClientMobileTokenResponse = {
+  accessToken: string
+  expiresIn: number
+  client: Client
+}
+
+export type OtpHint = {
   expiresAt: string
   code?: string
+}
+
+export type EmailVerificationHint = OtpHint
+
+export type PhoneAuthStart = {
+  expiresAt: string
+  code?: string
+  flow: 'signup' | 'login'
+  phone: string
+}
+
+export type ResetTokenResponse = {
+  resetToken: string
+  expiresIn: number
 }
 
 export type RegisterResponse = ClientTokenResponse & {

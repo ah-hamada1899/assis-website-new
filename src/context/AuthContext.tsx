@@ -10,35 +10,87 @@ import {
 } from 'react'
 import {
   clearTokens,
+  confirmPasswordReset as confirmPasswordResetRequest,
   getMe,
   getRefreshToken,
   login as loginRequest,
+  loginWithOtp as loginWithOtpRequest,
   logout as logoutRequest,
   persistTokens,
   refreshSession,
   register as registerRequest,
   requestEmailVerification,
+  requestOtp as requestOtpRequest,
+  requestPasswordResetEmail as requestPasswordResetEmailRequest,
+  requestPasswordResetOtp as requestPasswordResetOtpRequest,
+  signupWithPhone as signupWithPhoneRequest,
+  startPhoneAuth as startPhoneAuthRequest,
   verifyEmail,
+  verifyPasswordReset as verifyPasswordResetRequest,
+  verifyPhoneAuth as verifyPhoneAuthRequest,
 } from '../lib/api'
-import type { Client, EmailVerificationHint } from '../lib/types'
+import type {
+  Client,
+  EmailVerificationHint,
+  OtpHint,
+  PhoneAuthStart,
+  ResetTokenResponse,
+} from '../lib/types'
 
 type AuthContextValue = {
   client: Client | null
   ready: boolean
   emailHint: EmailVerificationHint | null
   signIn: (identifier: string, password: string) => Promise<Client>
+  signInWithOtp: (phone: string, code: string) => Promise<Client>
   signUp: (input: {
     fullName: string
     email: string
     password: string
   }) => Promise<Client>
+  signUpWithPhone: (input: {
+    phone: string
+    code: string
+    fullName: string
+  }) => Promise<Client>
+  requestPhoneOtp: (
+    phone: string,
+    purpose: 'signup' | 'login',
+  ) => Promise<OtpHint>
+  startPhoneAuth: (phone: string) => Promise<PhoneAuthStart>
+  verifyPhoneAuth: (input: {
+    phone: string
+    code: string
+    fullName?: string
+  }) => Promise<Client>
   signOut: () => Promise<void>
   confirmEmail: (code: string) => Promise<Client>
   resendEmailCode: () => Promise<EmailVerificationHint>
+  requestPasswordResetByPhone: (phone: string) => Promise<OtpHint>
+  requestPasswordResetByEmail: (email: string) => Promise<OtpHint>
+  verifyPasswordReset: (input: {
+    channel: 'phone' | 'email'
+    code: string
+    phone?: string
+    email?: string
+  }) => Promise<ResetTokenResponse>
+  confirmPasswordReset: (
+    resetToken: string,
+    newPassword: string,
+  ) => Promise<Client>
   refreshProfile: () => Promise<Client | null>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
+
+function applyTokens(
+  tokens: { accessToken: string; refreshToken: string; client: Client },
+  setClient: (client: Client) => void,
+) {
+  persistTokens(tokens)
+  setClient(tokens.client)
+  return tokens.client
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [client, setClient] = useState<Client | null>(null)
@@ -81,19 +133,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(async (identifier: string, password: string) => {
     const tokens = await loginRequest(identifier, password)
-    persistTokens(tokens)
-    setClient(tokens.client)
     setEmailHint(null)
-    return tokens.client
+    return applyTokens(tokens, setClient)
+  }, [])
+
+  const signInWithOtp = useCallback(async (phone: string, code: string) => {
+    const tokens = await loginWithOtpRequest(phone, code)
+    setEmailHint(null)
+    return applyTokens(tokens, setClient)
   }, [])
 
   const signUp = useCallback(
     async (input: { fullName: string; email: string; password: string }) => {
       const tokens = await registerRequest(input)
-      persistTokens(tokens)
-      setClient(tokens.client)
       setEmailHint(tokens.emailVerification ?? null)
-      return tokens.client
+      return applyTokens(tokens, setClient)
+    },
+    [],
+  )
+
+  const signUpWithPhone = useCallback(
+    async (input: { phone: string; code: string; fullName: string }) => {
+      const tokens = await signupWithPhoneRequest(input)
+      setEmailHint(null)
+      return applyTokens(tokens, setClient)
+    },
+    [],
+  )
+
+  const requestPhoneOtp = useCallback(
+    (phone: string, purpose: 'signup' | 'login') =>
+      requestOtpRequest(phone, purpose),
+    [],
+  )
+
+  const startPhoneAuth = useCallback(
+    (phone: string) => startPhoneAuthRequest(phone),
+    [],
+  )
+
+  const verifyPhoneAuth = useCallback(
+    async (input: { phone: string; code: string; fullName?: string }) => {
+      const tokens = await verifyPhoneAuthRequest(input)
+      setEmailHint(null)
+      return applyTokens(tokens, setClient)
     },
     [],
   )
@@ -123,6 +206,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return hint
   }, [])
 
+  const requestPasswordResetByPhone = useCallback(
+    (phone: string) => requestPasswordResetOtpRequest(phone),
+    [],
+  )
+
+  const requestPasswordResetByEmail = useCallback(
+    (email: string) => requestPasswordResetEmailRequest(email),
+    [],
+  )
+
+  const verifyPasswordReset = useCallback(
+    (input: {
+      channel: 'phone' | 'email'
+      code: string
+      phone?: string
+      email?: string
+    }) => verifyPasswordResetRequest(input),
+    [],
+  )
+
+  const confirmPasswordReset = useCallback(
+    async (resetToken: string, newPassword: string) => {
+      const profile = await confirmPasswordResetRequest(resetToken, newPassword)
+      return profile
+    },
+    [],
+  )
+
   const refreshProfile = useCallback(async () => {
     try {
       const profile = await getMe()
@@ -140,10 +251,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ready,
       emailHint,
       signIn,
+      signInWithOtp,
       signUp,
+      signUpWithPhone,
+      requestPhoneOtp,
+      startPhoneAuth,
+      verifyPhoneAuth,
       signOut,
       confirmEmail,
       resendEmailCode,
+      requestPasswordResetByPhone,
+      requestPasswordResetByEmail,
+      verifyPasswordReset,
+      confirmPasswordReset,
       refreshProfile,
     }),
     [
@@ -151,10 +271,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ready,
       emailHint,
       signIn,
+      signInWithOtp,
       signUp,
+      signUpWithPhone,
+      requestPhoneOtp,
+      startPhoneAuth,
+      verifyPhoneAuth,
       signOut,
       confirmEmail,
       resendEmailCode,
+      requestPasswordResetByPhone,
+      requestPasswordResetByEmail,
+      verifyPasswordReset,
+      confirmPasswordReset,
       refreshProfile,
     ],
   )

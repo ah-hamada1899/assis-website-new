@@ -12,5 +12,5 @@ export function OAuthCallbackPage() {
     )
   }
 
-  return <Navigate to={client ? '/account' : '/sign-in'} replace />
+  return <Navigate to={client ? '/home' : '/sign-in'} replace />
 }

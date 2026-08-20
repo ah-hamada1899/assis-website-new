@@ -31,7 +31,7 @@ export function AuthCard({ title, subtitle, progress, children }: AuthCardProps)
 export function AuthShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-svh flex-col bg-background">
-      <div className="flex justify-end px-6 py-6 md:px-16">
+      <div className="flex shrink-0 justify-end px-6 py-6 md:px-16">
         <ThemeToggle />
       </div>
       <main className="flex flex-1 items-start justify-center px-6 pb-10 md:items-center md:px-16 md:pb-16">
