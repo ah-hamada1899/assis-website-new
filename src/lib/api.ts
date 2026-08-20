@@ -11,45 +11,86 @@ import {
   type ResetTokenResponse,
 } from './types'
 
-const ACCESS_KEY = 'assis.accessToken'
-const REFRESH_KEY = 'assis.refreshToken'
+/** Web OAuth + API Bearer session (localStorage). */
+const ACCESS_KEY = 'assis_access_token'
+const REFRESH_KEY = 'assis_refresh_token'
+/** Legacy keys from earlier sessionStorage sessions. */
+const LEGACY_ACCESS_KEY = 'assis.accessToken'
+const LEGACY_REFRESH_KEY = 'assis.refreshToken'
+
+function readStorage(key: string): string | null {
+  return localStorage.getItem(key) ?? sessionStorage.getItem(key)
+}
 
 export function getAccessToken(): string | null {
-  return sessionStorage.getItem(ACCESS_KEY)
+  return readStorage(ACCESS_KEY) ?? readStorage(LEGACY_ACCESS_KEY)
 }
 
 export function getRefreshToken(): string | null {
-  return sessionStorage.getItem(REFRESH_KEY)
+  return readStorage(REFRESH_KEY) ?? readStorage(LEGACY_REFRESH_KEY)
+}
+
+export function persistAccessToken(accessToken: string): void {
+  localStorage.setItem(ACCESS_KEY, accessToken)
+  sessionStorage.removeItem(LEGACY_ACCESS_KEY)
+  sessionStorage.removeItem(ACCESS_KEY)
 }
 
 export function persistTokens(tokens: {
   accessToken: string
-  refreshToken: string
+  refreshToken?: string | null
 }): void {
-  sessionStorage.setItem(ACCESS_KEY, tokens.accessToken)
-  sessionStorage.setItem(REFRESH_KEY, tokens.refreshToken)
+  persistAccessToken(tokens.accessToken)
+  if (tokens.refreshToken) {
+    localStorage.setItem(REFRESH_KEY, tokens.refreshToken)
+    sessionStorage.removeItem(LEGACY_REFRESH_KEY)
+    sessionStorage.removeItem(REFRESH_KEY)
+  }
 }
 
 export function clearTokens(): void {
+  localStorage.removeItem(ACCESS_KEY)
+  localStorage.removeItem(REFRESH_KEY)
   sessionStorage.removeItem(ACCESS_KEY)
   sessionStorage.removeItem(REFRESH_KEY)
+  sessionStorage.removeItem(LEGACY_ACCESS_KEY)
+  sessionStorage.removeItem(LEGACY_REFRESH_KEY)
 }
 
-export function oauthUrl(
-  provider: 'google' | 'microsoft',
-  fromPath = '/home',
-): string {
-  if (!API_ORIGIN) {
+/**
+ * Browser navigation to the API OAuth start URL.
+ * Google returns to the API; the API 302s to /home?accessToken=… (or ?error=…).
+ * Do not append Google callback params or call oauth/exchange.
+ */
+export function oauthUrl(provider: 'google' | 'microsoft'): string {
+  const base = (API_ORIGIN || API_BASE_URL).replace(/\/$/, '')
+  if (!base.startsWith('http')) {
     throw new Error(
-      'VITE_API_ORIGIN is required for OAuth. Set it in your environment.',
+      'Set VITE_API_ORIGIN (or an absolute VITE_API_BASE_URL) for OAuth.',
     )
   }
-  const from = `${window.location.origin}${fromPath}`
-  const params = new URLSearchParams({
-    platform: 'web',
-    from,
-  })
-  return `${API_ORIGIN}/clients/auth/oauth/${provider}?${params.toString()}`
+  return `${base}/clients/auth/oauth/${provider}?platform=web`
+}
+
+/** Remove OAuth/session query params from the address bar without a navigation. */
+export function stripAuthSearchParams(): void {
+  const url = new URL(window.location.href)
+  for (const key of [
+    'accessToken',
+    'error',
+    'code',
+    'state',
+    'iss',
+    'scope',
+    'authuser',
+    'prompt',
+    'hd',
+  ]) {
+    url.searchParams.delete(key)
+  }
+  const search = url.searchParams.toString()
+  const next = `${url.pathname}${search ? `?${search}` : ''}${url.hash}`
+  window.history.replaceState({}, '', next)
 }
 
 async function parseEnvelope<T>(response: Response): Promise<T> {
@@ -201,19 +242,12 @@ export function loginMobilePhone(input: {
   )
 }
 
+/** Native apps only — web Google sign-in must use GET oauth redirect, not this. */
 export function loginWithGoogleIdToken(idToken: string) {
   return apiRequest<ClientTokenResponse>('/clients/auth/oauth/google', {
     method: 'POST',
     auth: false,
     body: { idToken },
-  })
-}
-
-export function exchangeOAuthCode(code: string) {
-  return apiRequest<ClientTokenResponse>('/clients/auth/oauth/exchange', {
-    method: 'POST',
-    auth: false,
-    body: { code },
   })
 }
 

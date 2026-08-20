@@ -66,6 +66,8 @@ export function SignInPage() {
     requestPhoneOtp,
     startPhoneAuth,
     verifyPhoneAuth,
+    oauthError,
+    clearOauthError,
   } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
@@ -211,6 +213,20 @@ export function SignInPage() {
         title="Welcome back"
         subtitle="Sign in with email/password, phone OTP, or a social provider."
       >
+        {oauthError ? (
+          <div className="mb-6 flex flex-col gap-2 rounded-lg bg-error-container px-4 py-3">
+            <p className="text-[14px] font-medium leading-5 text-on-error-container">
+              {oauthError}
+            </p>
+            <button
+              type="button"
+              className="self-start text-[13px] font-semibold text-on-error-container underline"
+              onClick={clearOauthError}
+            >
+              Dismiss
+            </button>
+          </div>
+        ) : null}
         <MethodTabs method={method} onChange={setMethod} />
 
         {method === 'email' ? (

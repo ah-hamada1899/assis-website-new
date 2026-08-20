@@ -11,11 +11,13 @@ import {
 import {
   clearTokens,
   confirmPasswordReset as confirmPasswordResetRequest,
+  getAccessToken,
   getMe,
   getRefreshToken,
   login as loginRequest,
   loginWithOtp as loginWithOtpRequest,
   logout as logoutRequest,
+  persistAccessToken,
   persistTokens,
   refreshSession,
   register as registerRequest,
@@ -25,10 +27,12 @@ import {
   requestPasswordResetOtp as requestPasswordResetOtpRequest,
   signupWithPhone as signupWithPhoneRequest,
   startPhoneAuth as startPhoneAuthRequest,
+  stripAuthSearchParams,
   verifyEmail,
   verifyPasswordReset as verifyPasswordResetRequest,
   verifyPhoneAuth as verifyPhoneAuthRequest,
 } from '../lib/api'
+import { ApiError } from '../lib/types'
 import type {
   Client,
   EmailVerificationHint,
@@ -41,6 +45,8 @@ type AuthContextValue = {
   client: Client | null
   ready: boolean
   emailHint: EmailVerificationHint | null
+  oauthError: string | null
+  clearOauthError: () => void
   signIn: (identifier: string, password: string) => Promise<Client>
   signInWithOtp: (phone: string, code: string) => Promise<Client>
   signUp: (input: {
@@ -84,12 +90,34 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 function applyTokens(
-  tokens: { accessToken: string; refreshToken: string; client: Client },
+  tokens: {
+    accessToken: string
+    refreshToken?: string | null
+    client: Client
+  },
   setClient: (client: Client) => void,
 ) {
   persistTokens(tokens)
   setClient(tokens.client)
   return tokens.client
+}
+
+async function restoreStoredSession(): Promise<Client | null> {
+  const accessToken = getAccessToken()
+  if (!accessToken) return null
+
+  const refreshToken = getRefreshToken()
+  if (refreshToken) {
+    try {
+      const tokens = await refreshSession(refreshToken)
+      persistTokens(tokens)
+      return tokens.client
+    } catch {
+      // Fall through to Bearer getMe.
+    }
+  }
+
+  return getMe(accessToken)
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -98,28 +126,59 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [emailHint, setEmailHint] = useState<EmailVerificationHint | null>(
     null,
   )
-
-  const applySession = useCallback(async () => {
-    const tokens = await refreshSession(getRefreshToken())
-    persistTokens(tokens)
-    setClient(tokens.client)
-    return tokens.client
-  }, [])
+  const [oauthError, setOauthError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
 
     void (async () => {
-      try {
-        const restored = await applySession()
-        if (!cancelled) setClient(restored)
-      } catch {
+      const params = new URLSearchParams(window.location.search)
+      const queryToken = params.get('accessToken')
+      const queryError = params.get('error')
+
+      if (queryError) {
+        clearTokens()
+        stripAuthSearchParams()
+        if (!cancelled) {
+          setOauthError(queryError)
+          setClient(null)
+          setReady(true)
+        }
+        return
+      }
+
+      if (queryToken) {
+        persistAccessToken(queryToken)
+        stripAuthSearchParams()
         try {
-          const profile = await getMe()
-          if (!cancelled) setClient(profile)
+          const profile = await getMe(queryToken)
+          if (!cancelled) {
+            setClient(profile)
+            setOauthError(null)
+            setEmailHint(null)
+          }
         } catch {
           clearTokens()
-          if (!cancelled) setClient(null)
+          if (!cancelled) {
+            setClient(null)
+            setOauthError('Could not complete Google sign-in.')
+          }
+        } finally {
+          if (!cancelled) setReady(true)
+        }
+        return
+      }
+
+      try {
+        const restored = await restoreStoredSession()
+        if (!cancelled) setClient(restored)
+      } catch (error) {
+        clearTokens()
+        if (!cancelled) {
+          setClient(null)
+          if (!(error instanceof ApiError && error.status === 401)) {
+            // Stay logged out on restore failure.
+          }
         }
       } finally {
         if (!cancelled) setReady(true)
@@ -129,17 +188,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true
     }
-  }, [applySession])
+  }, [])
+
+  const clearOauthError = useCallback(() => {
+    setOauthError(null)
+  }, [])
 
   const signIn = useCallback(async (identifier: string, password: string) => {
     const tokens = await loginRequest(identifier, password)
     setEmailHint(null)
+    setOauthError(null)
     return applyTokens(tokens, setClient)
   }, [])
 
   const signInWithOtp = useCallback(async (phone: string, code: string) => {
     const tokens = await loginWithOtpRequest(phone, code)
     setEmailHint(null)
+    setOauthError(null)
     return applyTokens(tokens, setClient)
   }, [])
 
@@ -151,6 +216,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           ? { expiresAt: tokens.emailVerification.expiresAt }
           : null,
       )
+      setOauthError(null)
       return applyTokens(tokens, setClient)
     },
     [],
@@ -160,6 +226,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (input: { phone: string; code: string; fullName: string }) => {
       const tokens = await signupWithPhoneRequest(input)
       setEmailHint(null)
+      setOauthError(null)
       return applyTokens(tokens, setClient)
     },
     [],
@@ -180,6 +247,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (input: { phone: string; code: string; fullName?: string }) => {
       const tokens = await verifyPhoneAuthRequest(input)
       setEmailHint(null)
+      setOauthError(null)
       return applyTokens(tokens, setClient)
     },
     [],
@@ -194,6 +262,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearTokens()
       setClient(null)
       setEmailHint(null)
+      setOauthError(null)
     }
   }, [])
 
@@ -233,8 +302,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const confirmPasswordReset = useCallback(
     async (resetToken: string, newPassword: string) => {
-      const profile = await confirmPasswordResetRequest(resetToken, newPassword)
-      return profile
+      return confirmPasswordResetRequest(resetToken, newPassword)
     },
     [],
   )
@@ -245,6 +313,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setClient(profile)
       return profile
     } catch {
+      clearTokens()
       setClient(null)
       return null
     }
@@ -255,6 +324,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       client,
       ready,
       emailHint,
+      oauthError,
+      clearOauthError,
       signIn,
       signInWithOtp,
       signUp,
@@ -275,6 +346,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       client,
       ready,
       emailHint,
+      oauthError,
+      clearOauthError,
       signIn,
       signInWithOtp,
       signUp,

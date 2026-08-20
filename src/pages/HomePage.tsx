@@ -1,10 +1,14 @@
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { AppHeader } from '../components/AppHeader'
 import { Button } from '../components/ui/Button'
 import { useAuth } from '../context/AuthContext'
 
 export function HomePage() {
-  const { client, ready } = useAuth()
+  const { client, ready, oauthError } = useAuth()
+
+  if (ready && client) {
+    return <Navigate to="/home" replace />
+  }
 
   return (
     <div className="min-h-svh bg-background">
@@ -20,6 +24,11 @@ export function HomePage() {
           <p className="mt-4 max-w-xl text-[18px] leading-7 text-on-surface-variant">
             Sign in or create an account to continue into your Assis workspace.
           </p>
+          {oauthError ? (
+            <p className="mt-4 max-w-xl rounded-lg bg-error-container px-4 py-3 text-[14px] font-medium leading-5 text-on-error-container">
+              {oauthError}
+            </p>
+          ) : null}
           {!ready || client ? null : (
             <div className="mt-8 flex max-w-sm gap-3">
               <Button asChild className="flex-1">
