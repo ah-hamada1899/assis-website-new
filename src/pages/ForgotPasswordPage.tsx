@@ -36,7 +36,6 @@ export function ForgotPasswordPage() {
   const [resetToken, setResetToken] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [otpHint, setOtpHint] = useState<string | undefined>()
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
@@ -59,15 +58,15 @@ export function ForgotPasswordPage() {
     setErrors({})
     setSubmitting(true)
     try {
-      const hint =
-        channel === 'email'
-          ? await requestPasswordResetByEmail(
-              (parsed.data as { email: string }).email,
-            )
-          : await requestPasswordResetByPhone(
-              (parsed.data as { phone: string }).phone,
-            )
-      setOtpHint(hint.code)
+      if (channel === 'email') {
+        await requestPasswordResetByEmail(
+          (parsed.data as { email: string }).email,
+        )
+      } else {
+        await requestPasswordResetByPhone(
+          (parsed.data as { phone: string }).phone,
+        )
+      }
       setStep('verify')
     } catch (error) {
       setErrors({
@@ -148,7 +147,7 @@ export function ForgotPasswordPage() {
 
   const subtitles: Record<Step, string> = {
     request:
-      'Use a verified email or phone. This calls the Client Verification reset endpoints.',
+      'Use a verified email or phone to receive a reset code.',
     verify: `Enter the 6-digit code sent to your ${channel}.`,
     confirm: 'Set a new password with the reset token from the previous step.',
   }
@@ -228,12 +227,6 @@ export function ForgotPasswordPage() {
               onChange={(event) => setCode(event.target.value)}
               error={errors.code}
             />
-            {otpHint ? (
-              <p className="rounded-lg bg-surface-low px-4 py-3 text-[14px] leading-5 text-on-surface-variant">
-                Staging returned a test code:{' '}
-                <span className="font-semibold text-primary">{otpHint}</span>
-              </p>
-            ) : null}
             {errors.form ? (
               <p className="text-[14px] font-medium leading-5 text-error">
                 {errors.form}

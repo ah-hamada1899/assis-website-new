@@ -55,10 +55,6 @@ export function AccountPage() {
             </div>
           </div>
           <Separator className="my-8" />
-          <p className="text-[16px] leading-6 text-on-surface-variant">
-            Profile loaded from{' '}
-            <code className="rounded-sm bg-surface-low px-1">GET /clients/me</code>.
-          </p>
           <dl className="mt-8 flex flex-col gap-6 text-[16px] leading-6">
             <div>
               <dt className="text-[14px] font-semibold tracking-[0.01em] text-on-surface">

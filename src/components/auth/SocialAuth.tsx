@@ -25,8 +25,7 @@ export function SocialAuth({ intent }: { intent: 'sign in' | 'sign up' }) {
         Continue with Microsoft
       </Button>
       <p className="pt-1 text-center text-[12px] font-medium leading-4 text-outline">
-        OAuth uses the staging redirect. {intent} with email if the provider is not
-        configured.
+        You can also {intent} with email or phone if a provider is unavailable.
       </p>
     </div>
   )

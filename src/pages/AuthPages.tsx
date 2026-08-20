@@ -50,16 +50,6 @@ function MethodTabs({
   )
 }
 
-function StagingCodeHint({ code }: { code?: string }) {
-  if (!code) return null
-  return (
-    <p className="rounded-lg bg-surface-low px-4 py-3 text-[14px] leading-5 text-on-surface-variant">
-      Staging returned a test code:{' '}
-      <span className="font-semibold text-primary">{code}</span>
-    </p>
-  )
-}
-
 function FormError({ message }: { message?: string }) {
   if (!message) return null
   return (
@@ -90,7 +80,6 @@ export function SignInPage() {
   const [fullName, setFullName] = useState('')
   const [phoneStep, setPhoneStep] = useState<'start' | 'verify'>('start')
   const [phoneFlow, setPhoneFlow] = useState<'login' | 'signup' | null>(null)
-  const [otpHint, setOtpHint] = useState<string | undefined>()
   const [phoneMode, setPhoneMode] = useState<'explicit' | 'auto'>('explicit')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
@@ -117,7 +106,7 @@ export function SignInPage() {
         form:
           error instanceof ApiError
             ? error.message
-            : 'Could not sign in. Check the staging API and try again.',
+            : 'Could not sign in. Please try again.',
       })
     } finally {
       setSubmitting(false)
@@ -139,11 +128,9 @@ export function SignInPage() {
         const started = await startPhoneAuth(parsed.data.phone)
         setPhone(started.phone)
         setPhoneFlow(started.flow)
-        setOtpHint(started.code)
       } else {
-        const hint = await requestPhoneOtp(parsed.data.phone, 'login')
+        await requestPhoneOtp(parsed.data.phone, 'login')
         setPhoneFlow('login')
-        setOtpHint(hint.code)
       }
       setPhoneStep('verify')
     } catch (error) {
@@ -278,11 +265,6 @@ export function SignInPage() {
                 Auto detect
               </Button>
             </div>
-            <p className="text-[13px] leading-5 text-on-surface-variant">
-              {phoneMode === 'explicit'
-                ? 'Uses POST /clients/auth/otp/request (login) then /login/otp.'
-                : 'Uses POST /clients/auth/phone then /phone/verify (signup or login).'}
-            </p>
             <TextField
               label="Phone number"
               name="phone"
@@ -328,7 +310,6 @@ export function SignInPage() {
                 error={errors.fullName}
               />
             ) : null}
-            <StagingCodeHint code={otpHint} />
             <FormError message={errors.form} />
             <Button type="submit" disabled={submitting}>
               {submitting ? 'Verifying…' : 'Verify & sign in'}
@@ -379,7 +360,6 @@ export function SignUpPage() {
     verifyPhoneAuth,
     confirmEmail,
     resendEmailCode,
-    emailHint,
   } = useAuth()
   const navigate = useNavigate()
   const [method, setMethod] = useState<AuthMethod>('email')
@@ -392,7 +372,6 @@ export function SignUpPage() {
   const [phoneCode, setPhoneCode] = useState('')
   const [phoneStep, setPhoneStep] = useState<'start' | 'verify'>('start')
   const [phoneFlow, setPhoneFlow] = useState<'login' | 'signup' | null>(null)
-  const [otpHint, setOtpHint] = useState<string | undefined>()
   const [phoneMode, setPhoneMode] = useState<'explicit' | 'auto'>('explicit')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
@@ -480,11 +459,9 @@ export function SignUpPage() {
         const started = await startPhoneAuth(parsed.data.phone)
         setPhone(started.phone)
         setPhoneFlow(started.flow)
-        setOtpHint(started.code)
       } else {
-        const hint = await requestPhoneOtp(parsed.data.phone, 'signup')
+        await requestPhoneOtp(parsed.data.phone, 'signup')
         setPhoneFlow('signup')
-        setOtpHint(hint.code)
       }
       setPhoneStep('verify')
     } catch (error) {
@@ -655,11 +632,6 @@ export function SignUpPage() {
                     Auto detect
                   </Button>
                 </div>
-                <p className="text-[13px] leading-5 text-on-surface-variant">
-                  {phoneMode === 'explicit'
-                    ? 'Uses POST /clients/auth/otp/request (signup) then /signup.'
-                    : 'Uses POST /clients/auth/phone then /phone/verify.'}
-                </p>
                 <TextField
                   label="Phone number"
                   name="phone"
@@ -705,7 +677,6 @@ export function SignUpPage() {
                     error={errors.fullName}
                   />
                 ) : null}
-                <StagingCodeHint code={otpHint} />
                 <FormError message={errors.form} />
                 <Button type="submit" disabled={submitting}>
                   {submitting ? 'Creating account…' : 'Create account'}
@@ -745,7 +716,6 @@ export function SignUpPage() {
               onChange={(event) => setCode(event.target.value)}
               error={errors.code}
             />
-            <StagingCodeHint code={emailHint?.code} />
             <FormError message={errors.form} />
             {status ? (
               <p className="text-[14px] leading-5 text-on-surface-variant">{status}</p>

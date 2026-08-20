@@ -1,6 +1,5 @@
+import { API_BASE_URL, API_ORIGIN } from './config'
 import {
-  API_BASE_URL,
-  API_ORIGIN,
   ApiError,
   type ApiEnvelope,
   type Client,
@@ -40,6 +39,11 @@ export function oauthUrl(
   provider: 'google' | 'microsoft',
   fromPath = '/home',
 ): string {
+  if (!API_ORIGIN) {
+    throw new Error(
+      'VITE_API_ORIGIN is required for OAuth. Set it in your environment.',
+    )
+  }
   const from = `${window.location.origin}${fromPath}`
   const params = new URLSearchParams({
     platform: 'web',

@@ -1,9 +1,3 @@
-export const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? '/api'
-
-export const API_ORIGIN =
-  import.meta.env.VITE_API_ORIGIN ?? 'https://assis-api-staging.ellwaa.com'
-
 export type ClientProvider = 'phone' | 'google' | 'microsoft' | 'local'
 
 export type Client = {

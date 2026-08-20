@@ -146,7 +146,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = useCallback(
     async (input: { fullName: string; email: string; password: string }) => {
       const tokens = await registerRequest(input)
-      setEmailHint(tokens.emailVerification ?? null)
+      setEmailHint(
+        tokens.emailVerification
+          ? { expiresAt: tokens.emailVerification.expiresAt }
+          : null,
+      )
       return applyTokens(tokens, setClient)
     },
     [],
@@ -202,8 +206,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const resendEmailCode = useCallback(async () => {
     const hint = await requestEmailVerification()
-    setEmailHint(hint)
-    return hint
+    const safeHint = { expiresAt: hint.expiresAt }
+    setEmailHint(safeHint)
+    return safeHint
   }, [])
 
   const requestPasswordResetByPhone = useCallback(

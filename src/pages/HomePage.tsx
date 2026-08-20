@@ -18,9 +18,7 @@ export function HomePage() {
             Growth, clarity, and a calm path into your account.
           </h1>
           <p className="mt-4 max-w-xl text-[18px] leading-7 text-on-surface-variant">
-            Sign in or create an account against the staging Client Auth APIs.
-            Sessions use the access token plus refresh cookie/token returned by
-            the backend.
+            Sign in or create an account to continue into your Assis workspace.
           </p>
           {!ready || client ? null : (
             <div className="mt-8 flex max-w-sm gap-3">
