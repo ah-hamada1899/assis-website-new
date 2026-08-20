@@ -161,9 +161,37 @@ export function SignInPage() {
   async function onPhoneVerify(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const needsName = phoneFlow === 'signup'
-    const parsed = needsName
-      ? phoneSignupSchema.safeParse({ phone, code, fullName })
-      : phoneOtpSchema.safeParse({ phone, code })
+
+    if (needsName) {
+      const parsed = phoneSignupSchema.safeParse({ phone, code, fullName })
+      if (!parsed.success) {
+        setErrors(fieldErrorsFromZod(parsed.error))
+        return
+      }
+
+      setErrors({})
+      setSubmitting(true)
+      try {
+        if (phoneMode === 'auto') {
+          await verifyPhoneAuth(parsed.data)
+        } else {
+          await signInWithOtp(parsed.data.phone, parsed.data.code)
+        }
+        navigate(from, { replace: true })
+      } catch (error) {
+        setErrors({
+          form:
+            error instanceof ApiError
+              ? error.message
+              : 'Could not verify the phone code.',
+        })
+      } finally {
+        setSubmitting(false)
+      }
+      return
+    }
+
+    const parsed = phoneOtpSchema.safeParse({ phone, code })
     if (!parsed.success) {
       setErrors(fieldErrorsFromZod(parsed.error))
       return
@@ -173,13 +201,7 @@ export function SignInPage() {
     setSubmitting(true)
     try {
       if (phoneMode === 'auto') {
-        await verifyPhoneAuth({
-          phone: parsed.data.phone,
-          code: parsed.data.code,
-          fullName: needsName
-            ? (parsed.data as { fullName: string }).fullName
-            : undefined,
-        })
+        await verifyPhoneAuth(parsed.data)
       } else {
         await signInWithOtp(parsed.data.phone, parsed.data.code)
       }
@@ -351,6 +373,7 @@ export function SignUpPage() {
     ready,
     signUp,
     signUpWithPhone,
+    signInWithOtp,
     requestPhoneOtp,
     startPhoneAuth,
     verifyPhoneAuth,
@@ -479,13 +502,41 @@ export function SignUpPage() {
   async function onPhoneVerify(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const needsName = phoneFlow !== 'login'
-    const parsed = needsName
-      ? phoneSignupSchema.safeParse({
-          phone,
-          code: phoneCode,
-          fullName,
+
+    if (needsName) {
+      const parsed = phoneSignupSchema.safeParse({
+        phone,
+        code: phoneCode,
+        fullName,
+      })
+      if (!parsed.success) {
+        setErrors(fieldErrorsFromZod(parsed.error))
+        return
+      }
+
+      setErrors({})
+      setSubmitting(true)
+      try {
+        if (phoneMode === 'auto') {
+          await verifyPhoneAuth(parsed.data)
+        } else {
+          await signUpWithPhone(parsed.data)
+        }
+        navigate('/home', { replace: true })
+      } catch (error) {
+        setErrors({
+          form:
+            error instanceof ApiError
+              ? error.message
+              : 'Could not complete phone sign-up.',
         })
-      : phoneOtpSchema.safeParse({ phone, code: phoneCode })
+      } finally {
+        setSubmitting(false)
+      }
+      return
+    }
+
+    const parsed = phoneOtpSchema.safeParse({ phone, code: phoneCode })
     if (!parsed.success) {
       setErrors(fieldErrorsFromZod(parsed.error))
       return
@@ -495,19 +546,9 @@ export function SignUpPage() {
     setSubmitting(true)
     try {
       if (phoneMode === 'auto') {
-        await verifyPhoneAuth({
-          phone: parsed.data.phone,
-          code: parsed.data.code,
-          fullName: needsName
-            ? (parsed.data as { fullName: string }).fullName
-            : undefined,
-        })
+        await verifyPhoneAuth(parsed.data)
       } else {
-        await signUpWithPhone({
-          phone: parsed.data.phone,
-          code: parsed.data.code,
-          fullName: (parsed.data as { fullName: string }).fullName,
-        })
+        await signInWithOtp(parsed.data.phone, parsed.data.code)
       }
       navigate('/home', { replace: true })
     } catch (error) {
